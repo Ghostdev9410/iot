@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_iot_mqtt_broker,iot.mqtt.broker,model_iot_mqtt_broker,iot_oca.group_iot_manager,1,1,1,1
+access_iot_mqtt_broker_user,iot.mqtt.broker user,model_iot_mqtt_broker,iot_oca.group_iot_user,1,0,0,0
+access_iot_mqtt_message,iot.mqtt.message,model_iot_mqtt_message,iot_oca.group_iot_manager,1,1,1,1
+access_iot_mqtt_message_user,iot.mqtt.message user,model_iot_mqtt_message,iot_oca.group_iot_user,1,0,0,0

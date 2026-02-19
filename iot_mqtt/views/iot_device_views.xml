@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="view_iot_device_form_inherit_mqtt" model="ir.ui.view">
+        <field name="name">iot.device.form.inherit.mqtt</field>
+        <field name="model">iot.device</field>
+        <field name="inherit_id" ref="iot_oca.iot_device_form" />
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="MQTT" name="mqtt_page">
+                    <div
+                        class="alert alert-warning"
+                        role="alert"
+                        invisible="mqtt_broker_is_listening or not mqtt_broker_id"
+                    >
+                        <i
+                        class="fa fa-exclamation-triangle"
+                    /> The MQTT Listener on the broker is currently <b
+                    >STOPPED</b>. Incoming messages will not be received.
+                    </div>
+                    <group>
+                        <group string="Configuration">
+                            <field name="mqtt_broker_id" />
+                            <field
+                                name="mqtt_broker_is_listening"
+                                widget="boolean_toggle"
+                            />
+                            <field name="mqtt_topic" />
+                            <field name="mqtt_qos" />
+                        </group>
+                        <group string="Test Publish">
+                            <field name="mqtt_test_payload" />
+                            <button
+                                name="action_mqtt_publish_test"
+                                string="Send Message"
+                                type="object"
+                                class="btn-primary"
+                                icon="fa-paper-plane"
+                            />
+                            <button
+                                name="action_clear_messages"
+                                string="Clear Logs"
+                                type="object"
+                                class="btn-secondary"
+                                icon="fa-trash"
+                                confirm="Are you sure you want to delete all log messages?"
+                            />
+                        </group>
+                    </group>
+                    <field name="mqtt_message_ids">
+                        <list
+                            string="Message Log"
+                            create="0"
+                            delete="0"
+                            default_order="create_date desc"
+                        >
+                            <field name="create_date" />
+                            <field
+                                name="direction"
+                                widget="badge"
+                                decoration-info="direction == 'in'"
+                                decoration-success="direction == 'out'"
+                            />
+                            <field name="topic" />
+                            <field name="payload" />
+                            <field name="qos" />
+                        </list>
+                    </field>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

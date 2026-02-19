@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="iot_communication_system_mqtt" model="iot.communication.system">
+        <field name="name">MQTT</field>
+    </record>
+</odoo>

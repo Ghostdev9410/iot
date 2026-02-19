@@ -1,0 +1,29 @@
+version: "3.8"
+services:
+  web:
+    image: odoo:18.0
+    depends_on:
+      - db
+    ports:
+      - "8069:8069"
+    volumes:
+      - .:/mnt/extra-addons
+      - odoo-iot-18-data:/var/lib/odoo
+    environment:
+      - HOST=db
+      - USER=odoo
+      - PASSWORD=odoo
+    command: odoo --dev=all
+
+  db:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_PASSWORD=odoo
+      - POSTGRES_USER=odoo
+    volumes:
+      - odoo-iot-18-db-data:/var/lib/postgresql/data
+
+volumes:
+  odoo-iot-18-data:
+  odoo-iot-18-db-data:

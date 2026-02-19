@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <!-- Form View -->
+    <record id="view_iot_mqtt_broker_form" model="ir.ui.view">
+        <field name="name">iot.mqtt.broker.form</field>
+        <field name="model">iot.mqtt.broker</field>
+        <field name="arch" type="xml">
+            <form string="MQTT Broker">
+                <header>
+                    <button
+                        name="action_test_connection"
+                        string="Test Connection"
+                        type="object"
+                    />
+                    <button
+                        name="action_start_listener"
+                        string="Start Listener"
+                        type="object"
+                        class="oe_highlight"
+                        invisible="is_listening"
+                    />
+                    <button
+                        name="action_stop_listener"
+                        string="Stop Listener"
+                        type="object"
+                        class="btn-danger"
+                        invisible="not is_listening"
+                    />
+                </header>
+                <sheet>
+                    <field name="is_listening" invisible="1" />
+                    <div class="oe_title">
+                        <label for="name" class="oe_edit_only" />
+                        <h1>
+                            <field name="name" />
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="host" />
+                            <field name="port" />
+                            <field name="use_ssl" />
+                        </group>
+                        <group>
+                            <field name="username" />
+                            <field name="password" password="True" />
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Tree View -->
+    <record id="view_iot_mqtt_broker_tree" model="ir.ui.view">
+        <field name="name">iot.mqtt.broker.list</field>
+        <field name="model">iot.mqtt.broker</field>
+        <field name="arch" type="xml">
+            <list string="MQTT Brokers">
+                <field name="name" />
+                <field name="host" />
+                <field name="port" />
+                <field name="use_ssl" />
+            </list>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_iot_mqtt_broker" model="ir.actions.act_window">
+        <field name="name">MQTT Brokers</field>
+        <field name="res_model">iot.mqtt.broker</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Menu -->
+    <menuitem
+        id="menu_iot_mqtt_broker"
+        name="MQTT Brokers"
+        parent="iot_oca.iot_configuration_menu"
+        action="action_iot_mqtt_broker"
+        sequence="20"
+    />
+</odoo>
