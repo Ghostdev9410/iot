@@ -2,8 +2,10 @@
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 
 import logging
+import threading
 
 from odoo import _, api, fields, models
+from odoo.exceptions import UserError
 from odoo.modules.registry import Registry
 
 _logger = logging.getLogger(__name__)
@@ -36,7 +38,7 @@ class IotMqttBroker(models.Model):
     def _on_connect_callback(client, userdata, flags, rc, properties=None, env=None):
         broker_name = userdata.get("broker_name", "Unknown")
         if rc == 0:
-            _logger.info(f"MQTT Broker {broker_name} connected via Thread.")
+            _logger.info("MQTT Broker %s connected via Thread.", broker_name)
             try:
                 if env:
                     devices = env["iot.device"].search(
@@ -58,20 +60,20 @@ class IotMqttBroker(models.Model):
                         )
                         for dev in devices:
                             if dev.mqtt_topic:
-                                _logger.info(f"Subscribing to {dev.mqtt_topic}")
+                                _logger.info("Subscribing to %s", dev.mqtt_topic)
                                 client.subscribe(
                                     dev.mqtt_topic, qos=int(dev.mqtt_qos or 0)
                                 )
             except Exception as e:
-                _logger.error(f"Error in on_connect subscription: {e}")
+                _logger.error("Error in on_connect subscription: %s", e)
         else:
-            _logger.error(f"MQTT Connection failed with code {rc}")
+            _logger.error("MQTT Connection failed with code %s", rc)
 
     @staticmethod
     def _on_message_callback(client, userdata, msg, env=None):
         payload = msg.payload.decode("utf-8")
         topic = msg.topic
-        _logger.info(f"MQTT MSG IN: {topic} -> {payload}")
+        _logger.info("MQTT MSG IN: %s -> %s", topic, payload)
 
         try:
 
@@ -107,15 +109,17 @@ class IotMqttBroker(models.Model):
                     cr.commit()  # pylint: disable=invalid-commit
 
         except Exception as e:
-            _logger.error(f"Error processing MQTT message: {e}")
+            _logger.error("Error processing MQTT message: %s", e)
 
     def action_start_listener(self):
         """Starts a background thread to listen for messages."""
         self.ensure_one()
+        # paho-mqtt is imported inside the method to avoid ImportError
+        # when the library is not installed (optional dependency).
         try:
             import paho.mqtt.client as mqtt
         except ImportError:
-            raise models.UserError(_("paho-mqtt library not installed.")) from None
+            raise UserError(_("paho-mqtt library not installed.")) from None
 
         self.action_stop_listener()
 
@@ -143,7 +147,7 @@ class IotMqttBroker(models.Model):
             _MQTT_CLIENTS[self.id] = client
             return True
         except Exception as e:
-            raise models.UserError(_("Could not start listener: %s") % e) from e
+            raise UserError(_("Could not start listener: %s") % e) from e
 
     def action_stop_listener(self):
         """Stops the background listener."""
@@ -156,18 +160,28 @@ class IotMqttBroker(models.Model):
         return True
 
     def action_test_connection(self):
+        """Test the connection to the MQTT broker."""
         self.ensure_one()
+        # paho-mqtt is imported inside the method to avoid ImportError
+        # when the library is not installed (optional dependency).
         try:
             import paho.mqtt.client as mqtt
         except ImportError:
-            raise models.UserError(
+            raise UserError(
                 _(
                     "The paho-mqtt library is not installed. "
                     "Please install it to use MQTT features."
                 )
             ) from None
 
-        client = mqtt.Client(protocol=mqtt.MQTTv311)
+        connected_event = threading.Event()
+
+        def _on_connect_test(client, userdata, flags, rc, properties=None):
+            if rc == 0:
+                connected_event.set()
+
+        client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+        client.on_connect = _on_connect_test
 
         if self.username:
             client.username_pw_set(self.username, self.password)
@@ -176,15 +190,10 @@ class IotMqttBroker(models.Model):
             client.tls_set()
 
         try:
-            # Connect with a short timeout (5 seconds)
             client.connect(self.host, self.port, keepalive=5)
             client.loop_start()
-            # Wait for connection to be established
-            import time
 
-            time.sleep(1)
-
-            if client.is_connected():
+            if connected_event.wait(timeout=5):
                 return {
                     "type": "ir.actions.client",
                     "tag": "display_notification",
@@ -199,15 +208,13 @@ class IotMqttBroker(models.Model):
                     },
                 }
             else:
-                raise models.UserError(
+                raise UserError(
                     _("Could not connect to MQTT broker at %(host)s:%(port)s. Timeout.")
                     % {"host": self.host, "port": self.port}
                 )
 
         except Exception as e:
-            raise models.UserError(
-                _("Failed to connect to MQTT broker: %s") % str(e)
-            ) from e
+            raise UserError(_("Failed to connect to MQTT broker: %s") % str(e)) from e
         finally:
             client.loop_stop()
             client.disconnect()

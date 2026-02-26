@@ -7,7 +7,7 @@
     "version": "18.0.1.0.0",
     "category": "IoT",
     "website": "https://github.com/OCA/iot",
-    "author": "Odoo Community Association (OCA)",
+    "author": "Ghostdev9410, Odoo Community Association (OCA)",
     "license": "AGPL-3",
     "application": False,
     "installable": True,

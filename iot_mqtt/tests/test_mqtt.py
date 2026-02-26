@@ -1,3 +1,6 @@
+# Copyright 2024 Odoo Community Association (OCA)
+# License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
+
 from unittest.mock import MagicMock, patch
 
 from odoo import fields
@@ -79,3 +82,88 @@ class TestMqttCallbacks(TransactionCase):
             [("device_id", "=", self.device.id), ("direction", "=", "out")]
         )
         self.assertEqual(len(logs), 1, "Should have created one OUT log")
+
+    @patch("paho.mqtt.client.Client")
+    def test_start_stop_listener(self, mock_mqtt_client_cls):
+        """Test that start/stop listener manages the global client registry."""
+        from ..models.iot_mqtt_broker import _MQTT_CLIENTS
+
+        mock_client_instance = mock_mqtt_client_cls.return_value
+
+        self.broker.action_start_listener()
+
+        self.assertIn(self.broker.id, _MQTT_CLIENTS)
+        mock_client_instance.connect.assert_called_with(
+            "test.mosquitto.org", 1883, keepalive=60
+        )
+        mock_client_instance.loop_start.assert_called_once()
+
+        self.broker.action_stop_listener()
+
+        self.assertNotIn(self.broker.id, _MQTT_CLIENTS)
+        mock_client_instance.loop_stop.assert_called_once()
+        mock_client_instance.disconnect.assert_called_once()
+
+    def test_on_connect_callback_subscribes(self):
+        """Test that _on_connect_callback subscribes to device topics."""
+        userdata = {
+            "dbname": self.env.cr.dbname,
+            "uid": self.env.uid,
+            "broker_id": self.broker.id,
+            "broker_name": self.broker.name,
+        }
+        mock_client = MagicMock()
+
+        # Pass env=self.env to use the test transaction
+        self.env["iot.mqtt.broker"]._on_connect_callback(
+            mock_client, userdata, {}, 0, env=self.env
+        )
+
+        mock_client.subscribe.assert_called_once_with("test/topic", qos=1)
+
+    @patch("paho.mqtt.client.Client")
+    def test_connection_success(self, mock_mqtt_client_cls):
+        """Test that action_test_connection returns success notification."""
+        mock_client_instance = mock_mqtt_client_cls.return_value
+
+        # Simulate the on_connect callback being fired (sets the Event)
+        def fake_connect(host, port, keepalive=5):
+            # Trigger on_connect callback to set the threading.Event
+            if mock_client_instance.on_connect:
+                mock_client_instance.on_connect(mock_client_instance, None, {}, 0)
+
+        mock_client_instance.connect.side_effect = fake_connect
+
+        result = self.broker.action_test_connection()
+
+        self.assertEqual(result["type"], "ir.actions.client")
+        self.assertEqual(result["tag"], "display_notification")
+        self.assertEqual(result["params"]["type"], "success")
+        mock_client_instance.loop_stop.assert_called_once()
+        mock_client_instance.disconnect.assert_called_once()
+
+    def test_clear_messages(self):
+        """Test that action_clear_messages removes all MQTT messages."""
+        self.env["iot.mqtt.message"].create(
+            {
+                "device_id": self.device.id,
+                "direction": "in",
+                "topic": "test/topic",
+                "payload": "test1",
+            }
+        )
+        self.env["iot.mqtt.message"].create(
+            {
+                "device_id": self.device.id,
+                "direction": "out",
+                "topic": "test/topic",
+                "payload": "test2",
+            }
+        )
+
+        self.assertEqual(len(self.device.mqtt_message_ids), 2)
+
+        self.device.action_clear_messages()
+
+        self.device.invalidate_recordset()
+        self.assertEqual(len(self.device.mqtt_message_ids), 0)

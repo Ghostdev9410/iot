@@ -94,6 +94,11 @@ Do not contact contributors directly about support or help with technical issues
 Credits
 =======
 
+Authors
+-------
+
+* Ghostdev9410
+
 Contributors
 ------------
 

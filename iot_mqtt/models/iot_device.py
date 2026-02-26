@@ -2,6 +2,7 @@
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 
 from odoo import _, api, fields, models
+from odoo.exceptions import UserError
 
 
 class IotDevice(models.Model):
@@ -31,17 +32,19 @@ class IotDevice(models.Model):
     def action_mqtt_publish_test(self):
         self.ensure_one()
         if not self.mqtt_broker_id:
-            raise models.UserError(_("Please select an MQTT Broker first."))
+            raise UserError(_("Please select an MQTT Broker first."))
         if not self.mqtt_topic:
-            raise models.UserError(_("Please set an MQTT Topic."))
+            raise UserError(_("Please set an MQTT Topic."))
 
+        # paho-mqtt is imported inside the method to avoid ImportError
+        # when the library is not installed (optional dependency).
         try:
             import paho.mqtt.client as mqtt
         except ImportError:
-            raise models.UserError(_("paho-mqtt library not installed.")) from None
+            raise UserError(_("paho-mqtt library not installed.")) from None
 
         broker = self.mqtt_broker_id
-        client = mqtt.Client(protocol=mqtt.MQTTv311)
+        client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 
         if broker.username:
             client.username_pw_set(broker.username, broker.password)
@@ -70,10 +73,10 @@ class IotDevice(models.Model):
 
                 return True
             else:
-                raise models.UserError(_("Publish timed out."))
+                raise UserError(_("Publish timed out."))
 
         except Exception as e:
-            raise models.UserError(_("MQTT Publish Error: %s") % e) from e
+            raise UserError(_("MQTT Publish Error: %s") % e) from e
         finally:
             client.loop_stop()
             client.disconnect()
